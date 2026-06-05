@@ -1,0 +1,5 @@
+node_modules/
+dist/
+items/*
+!items/.gitkeep
+inbox.sqlite
