@@ -8,11 +8,13 @@
   },
   "scripts": {
     "inbox": "bun run bin/inbox.ts",
+    "serve": "bun run src/server.ts",
     "dev": "bun --watch bin/inbox.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.5.0",
     "defuddle": "^0.18.1",
+    "hono": "^4.12.23",
     "linkedom": "^0.18.0"
   },
   "devDependencies": {

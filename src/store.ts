@@ -31,7 +31,7 @@ export class Store {
         title TEXT NOT NULL,
         description TEXT,
         site_name TEXT,
-        content TEXT NOT NULL DEFAULT '',
+        body TEXT NOT NULL DEFAULT '',
         tags TEXT NOT NULL DEFAULT '[]',
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -46,7 +46,7 @@ export class Store {
     this.db.run(`
       CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(
         title,
-        content,
+        body,
         description,
         tokenize='porter unicode61'
       )
@@ -55,18 +55,18 @@ export class Store {
     // Triggers to keep FTS in sync
     this.db.run(`
       CREATE TRIGGER IF NOT EXISTS items_ai AFTER INSERT ON items BEGIN
-        INSERT INTO items_fts(rowid, title, content, description) VALUES (new.id, new.title, new.content, new.description);
+        INSERT INTO items_fts(rowid, title, body, description) VALUES (new.id, new.title, new.body, new.description);
       END
     `);
     this.db.run(`
       CREATE TRIGGER IF NOT EXISTS items_ad AFTER DELETE ON items BEGIN
-        INSERT INTO items_fts(items_fts, rowid, title, content, description) VALUES('delete', old.id, old.title, old.content, old.description);
+        DELETE FROM items_fts WHERE rowid = old.id;
       END
     `);
     this.db.run(`
       CREATE TRIGGER IF NOT EXISTS items_au AFTER UPDATE ON items BEGIN
-        INSERT INTO items_fts(items_fts, rowid, title, content, description) VALUES('delete', old.id, old.title, old.content, old.description);
-        INSERT INTO items_fts(rowid, title, content, description) VALUES (new.id, new.title, new.content, new.description);
+        DELETE FROM items_fts WHERE rowid = old.id;
+        INSERT INTO items_fts(rowid, title, body, description) VALUES (new.id, new.title, new.body, new.description);
       END
     `);
 
@@ -104,7 +104,7 @@ export class Store {
     const tags = "[]";
 
     const stmt = this.db.prepare(`
-      INSERT INTO items (url, title, description, site_name, content, tags, filename, word_count)
+      INSERT INTO items (url, title, description, site_name, body, tags, filename, word_count)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const result = stmt.run(url, title, description, siteName, content, tags, filename, wordCount);

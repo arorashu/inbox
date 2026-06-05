@@ -4,6 +4,7 @@ export interface InboxItem {
   title: string;
   description: string | null;
   site_name: string | null;
+  body: string;
   tags: string[];
   created_at: string;
   updated_at: string;
