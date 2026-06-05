@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import type { InboxItem, InboxItemWithSnippet, ListOptions, SearchOptions } from "./types";
-import { existsSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
+import { existsSync, writeFileSync, readFileSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 
 export class Store {
@@ -98,27 +98,34 @@ export class Store {
 
     // Save markdown file
     const markdown = this.buildMarkdown(title, url, siteName, description, content);
-    writeFileSync(join(this.itemsDir, filename), markdown, "utf-8");
+    const filepath = join(this.itemsDir, filename);
+    writeFileSync(filepath, markdown, "utf-8");
 
     const wordCount = content.split(/\s+/).filter(Boolean).length;
     const tags = "[]";
 
-    const stmt = this.db.prepare(`
-      INSERT INTO items (url, title, description, site_name, body, tags, filename, word_count)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const result = stmt.run(url, title, description, siteName, content, tags, filename, wordCount);
-
-    return this.getById(Number(result.lastInsertRowid))!;
+    try {
+      const stmt = this.db.prepare(`
+        INSERT INTO items (url, title, description, site_name, body, tags, filename, word_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const result = stmt.run(url, title, description, siteName, content, tags, filename, wordCount);
+      return this.getById(Number(result.lastInsertRowid))!;
+    } catch (err) {
+      // Clean up orphaned file if DB insert fails
+      try { unlinkSync(filepath); } catch {}
+      throw err;
+    }
   }
 
   /**
    * Get a single item by ID.
    */
   getById(id: number): InboxItem | null {
-    return this.db
+    const item = this.db
       .query<InboxItem, [number]>("SELECT * FROM items WHERE id = ?")
       .get(id) ?? null;
+    return item ? this.normalize(item) : null;
   }
 
   /**
@@ -157,17 +164,17 @@ export class Store {
     }
 
     if (tags && tags.length > 0) {
-      sql += " AND (";
-      const clauses = tags.map(() => "tags LIKE ?");
-      sql += clauses.join(" OR ");
-      sql += ")";
-      tags.forEach((t) => params.push(`%"${t}"%`));
+      // Use json_each to check if any of the requested tags exist in the tags array
+      sql += " AND EXISTS (SELECT 1 FROM json_each(tags) WHERE json_each.value IN (";
+      sql += tags.map(() => "?").join(", ");
+      sql += "))";
+      tags.forEach((t) => params.push(t));
     }
 
     sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
     params.push(limit, offset);
 
-    return this.db.query<InboxItem, any[]>(sql).all(...params);
+    return this.db.query<InboxItem, any[]>(sql).all(...params).map(i => this.normalize(i));
   }
 
   /**
@@ -182,14 +189,13 @@ export class Store {
       JOIN items i ON i.id = f.rowid
       WHERE items_fts MATCH ?
     `;
-    const params: any[] = [query];
+    const params: any[] = [this.escapeFts5(query)];
 
     if (tags && tags.length > 0) {
-      sql += " AND (";
-      const clauses = tags.map(() => "i.tags LIKE ?");
-      sql += clauses.join(" OR ");
-      sql += ")";
-      tags.forEach((t) => params.push(`%"${t}"%`));
+      sql += " AND EXISTS (SELECT 1 FROM json_each(i.tags) WHERE json_each.value IN (";
+      sql += tags.map(() => "?").join(", ");
+      sql += "))";
+      tags.forEach((t) => params.push(t));
     }
 
     sql += " ORDER BY rank LIMIT ? OFFSET ?";
@@ -197,7 +203,7 @@ export class Store {
 
     return this.db
       .query<InboxItemWithSnippet, any[]>(sql)
-      .all(...params);
+      .all(...params).map(i => ({ ...this.normalize(i as any), snippet: i.snippet, rank: i.rank }));
   }
 
   /**
@@ -240,7 +246,6 @@ export class Store {
     const item = this.getById(id);
     if (!item) return false;
     try {
-      const { unlinkSync } = require("node:fs");
       unlinkSync(join(this.itemsDir, item.filename));
     } catch {
       // File might already be gone
@@ -261,6 +266,30 @@ export class Store {
     this.db.close();
   }
 
+  /** Escape special characters for FTS5 query syntax */
+  private escapeFts5(query: string): string {
+    // FTS5 special characters: * " - ( ) + ^ ~
+    // Wrap each word in double quotes to make it a literal match,
+    // then append * for prefix matching
+    return query
+      .replace(/[\x00-\x1f\x7f"*()^~]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(w => `"${w}"*`)
+      .join(" ");
+  }
+
+  private normalize(item: InboxItem): InboxItem {
+    if (typeof item.tags === "string") {
+      try {
+        return { ...item, tags: JSON.parse(item.tags as any) };
+      } catch {
+        return { ...item, tags: [] };
+      }
+    }
+    return item;
+  }
+
   private buildMarkdown(
     title: string,
     url: string,
@@ -268,17 +297,15 @@ export class Store {
     description: string | null,
     content: string
   ): string {
-    return [
+    const lines = [
       `# ${title}`,
       "",
       `> Source: [${siteName || url}](${url})`,
-      description ? `> ${description}` : "",
-      "",
-      "---",
-      "",
-      content,
-    ]
-      .filter((line) => line !== "> ")
-      .join("\n");
+    ];
+    if (description) {
+      lines.push(`> ${description}`);
+    }
+    lines.push("", "---", "", content);
+    return lines.join("\n");
   }
 }

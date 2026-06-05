@@ -1,14 +1,13 @@
 import { Hono } from "hono";
-import { serveStatic } from "hono/bun";
+import type { Context, Next } from "hono";
 import { add, list } from "./core";
-import type { InboxItem } from "./types";
 
 const PORT = parseInt(process.env.INBOX_PORT || "3333");
 const TOKEN = process.env.INBOX_TOKEN;
 const app = new Hono();
 
 // --- Auth middleware ---
-function auth(c: any, next: any) {
+function auth(c: Context, next: Next) {
   // Localhost doesn't need auth
   const ip = c.req.header("x-forwarded-for") || "";
   if (ip === "127.0.0.1" || ip === "::1" || ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) {

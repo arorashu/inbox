@@ -15,6 +15,7 @@ export async function extract(url: string): Promise<ExtractedContent> {
       "Accept-Language": "en-US,en;q=0.5",
     },
     redirect: "follow",
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!response.ok) {
@@ -108,6 +109,25 @@ function htmlToText(html: string): string {
           case "li":
             lines.push(`- ${el.textContent?.trim()}`);
             break;
+          case "em":
+          case "i":
+            lines.push(`*${el.textContent?.trim()}*`);
+            break;
+          case "strong":
+          case "b":
+            lines.push(`**${el.textContent?.trim()}**`);
+            break;
+          case "a": {
+            const href = (el as Element).getAttribute("href");
+            lines.push(`[${el.textContent?.trim()}](${href || "#"})`);
+            break;
+          }
+          case "img": {
+            const src = (el as Element).getAttribute("src");
+            const alt = (el as Element).getAttribute("alt") || "";
+            if (src) lines.push(`![${alt}](${src})`);
+            break;
+          }
           case "pre":
           case "code":
             lines.push("");

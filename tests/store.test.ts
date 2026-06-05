@@ -206,8 +206,7 @@ describe("Store", () => {
       store.setTags(item.id, ["rust", "systems", "low-level"]);
 
       const updated = store.getById(item.id);
-      const tags = JSON.parse(updated!.tags as any);
-      expect(tags).toEqual(["rust", "systems", "low-level"]);
+      expect(updated!.tags).toEqual(["rust", "systems", "low-level"]);
     });
   });
 

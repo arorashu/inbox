@@ -86,8 +86,7 @@ export function tag(id: number, tags: string[]): InboxItem | null {
 export function read(id: number): InboxItem | null {
   const store = getStore();
   try {
-    const item = store.setRead(id, true);
-    return item ? normalizeTags(item) : null;
+    return store.setRead(id, true);
   } finally {
     store.close();
   }
@@ -96,8 +95,7 @@ export function read(id: number): InboxItem | null {
 export function unread(id: number): InboxItem | null {
   const store = getStore();
   try {
-    const item = store.setRead(id, false);
-    return item ? normalizeTags(item) : null;
+    return store.setRead(id, false);
   } finally {
     store.close();
   }
@@ -106,8 +104,7 @@ export function unread(id: number): InboxItem | null {
 export function archive(id: number): InboxItem | null {
   const store = getStore();
   try {
-    const item = store.setArchived(id, true);
-    return item ? normalizeTags(item) : null;
+    return store.setArchived(id, true);
   } finally {
     store.close();
   }
@@ -116,16 +113,10 @@ export function archive(id: number): InboxItem | null {
 export function unarchive(id: number): InboxItem | null {
   const store = getStore();
   try {
-    const item = store.setArchived(id, false);
-    return item ? normalizeTags(item) : null;
+    return store.setArchived(id, false);
   } finally {
     store.close();
   }
-}
-
-function normalizeTags(item: InboxItem): InboxItem {
-  const tags = typeof item.tags === 'string' ? JSON.parse(item.tags as any) : item.tags;
-  return { ...item, tags };
 }
 
 export function remove(id: number): boolean {
@@ -145,9 +136,10 @@ export function stats(): {
   const store = getStore();
   try {
     const total = store.count();
-    const unread = store.list({ read: false }).length;
-    const archived = store.list({ archived: true }).length;
-    return { total, unread, archived: archived };
+    const allItems = store.list({ archived: true, limit: 100000 });
+    const unread = allItems.filter(i => i.read === 0 && i.archived === 0).length;
+    const archived = allItems.filter(i => i.archived === 1).length;
+    return { total, unread, archived };
   } finally {
     store.close();
   }
