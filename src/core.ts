@@ -76,7 +76,8 @@ export function search(options: {
 export function tag(id: number, tags: string[]): InboxItem | null {
   const store = getStore();
   try {
-    return store.setTags(id, tags);
+    const item = store.setTags(id, tags);
+    return item ? { ...item, tags } : null;
   } finally {
     store.close();
   }
@@ -85,7 +86,8 @@ export function tag(id: number, tags: string[]): InboxItem | null {
 export function read(id: number): InboxItem | null {
   const store = getStore();
   try {
-    return store.setRead(id, true);
+    const item = store.setRead(id, true);
+    return item ? normalizeTags(item) : null;
   } finally {
     store.close();
   }
@@ -94,7 +96,8 @@ export function read(id: number): InboxItem | null {
 export function unread(id: number): InboxItem | null {
   const store = getStore();
   try {
-    return store.setRead(id, false);
+    const item = store.setRead(id, false);
+    return item ? normalizeTags(item) : null;
   } finally {
     store.close();
   }
@@ -103,7 +106,8 @@ export function unread(id: number): InboxItem | null {
 export function archive(id: number): InboxItem | null {
   const store = getStore();
   try {
-    return store.setArchived(id, true);
+    const item = store.setArchived(id, true);
+    return item ? normalizeTags(item) : null;
   } finally {
     store.close();
   }
@@ -112,10 +116,16 @@ export function archive(id: number): InboxItem | null {
 export function unarchive(id: number): InboxItem | null {
   const store = getStore();
   try {
-    return store.setArchived(id, false);
+    const item = store.setArchived(id, false);
+    return item ? normalizeTags(item) : null;
   } finally {
     store.close();
   }
+}
+
+function normalizeTags(item: InboxItem): InboxItem {
+  const tags = typeof item.tags === 'string' ? JSON.parse(item.tags as any) : item.tags;
+  return { ...item, tags };
 }
 
 export function remove(id: number): boolean {
