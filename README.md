@@ -23,6 +23,21 @@ bun inbox search "error handling"
 
 # Read an item
 bun inbox get 1
+
+# Start the API server (for iOS sharing)
+bun inbox serve
+```
+
+### iOS Share
+
+Set up the [iOS Shortcut](docs/IOS_SHORTCUT.md) to share links from your phone directly to your inbox via Tailscale.
+
+### Run as daemon
+
+```bash
+sudo cp docs/inbox.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now inbox
 ```
 
 ## Commands

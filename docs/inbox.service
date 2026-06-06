@@ -1,0 +1,17 @@
+[Unit]
+Description=Inbox API server
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agent
+WorkingDirectory=/home/agent/misc/inbox
+ExecStart=/home/agent/.npm-global/bin/bun run src/server.ts
+Environment=INBOX_PORT=3333
+Environment=HOME=/home/agent
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
