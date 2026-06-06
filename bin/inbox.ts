@@ -90,7 +90,6 @@ async function main() {
       } else {
         printItem(item, true);
       }
-      read(id);
       break;
     }
 
