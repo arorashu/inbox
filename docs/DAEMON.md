@@ -1,6 +1,18 @@
 # Running inbox server persistently
 
-## Option 1: tmux (recommended)
+## Option 1: systemd --user (NixOS compatible)
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp docs/inbox.service ~/.config/systemd/user/inbox.service
+systemctl --user daemon-reload
+systemctl --user enable --now inbox
+systemctl --user status inbox
+```
+
+View logs: `journalctl --user -u inbox -f`
+
+## Option 2: tmux
 
 ```bash
 tmux new-session -d -s inbox "cd ~/misc/inbox && bun inbox serve"
@@ -8,36 +20,15 @@ tmux new-session -d -s inbox "cd ~/misc/inbox && bun inbox serve"
 
 To attach/detach: `tmux attach -t inbox` / `Ctrl+B, D`
 
-## Option 2: systemd (if supported)
-
-```bash
-sudo cp docs/inbox.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now inbox
-sudo systemctl status inbox
-```
-
-## Option 3: nohup (simple, no reconnection)
+## Option 3: nohup
 
 ```bash
 cd ~/misc/inbox && nohup bun run src/server.ts > /tmp/inbox.log 2>&1 &
 ```
 
-Server will stay running until the machine reboots. View logs: `tail -f /tmp/inbox.log`
+View logs: `tail -f /tmp/inbox.log`
 
-## Option 4: Docker
-
-```dockerfile
-FROM oven/bun:1
-WORKDIR /app
-COPY package.json bun.lock ./
-RUN bun install
-COPY . .
-EXPOSE 3333
-CMD ["bun", "run", "src/server.ts"]
-```
-
-## Verify it's running
+## Verify
 
 ```bash
 curl http://localhost:3333/api/health
