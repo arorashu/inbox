@@ -6,6 +6,14 @@ const PORT = parseInt(process.env.INBOX_PORT || "3333");
 const TOKEN = process.env.INBOX_TOKEN;
 const app = new Hono();
 
+// --- Request logger ---
+app.use("*", async (c: Context, next: Next) => {
+  const start = Date.now();
+  await next();
+  const ms = Date.now() - start;
+  console.log(`${c.req.method} ${c.req.path} → ${c.res.status} (${ms}ms)`);
+});
+
 // --- Auth middleware ---
 function auth(c: Context, next: Next) {
   // Localhost doesn't need auth
@@ -29,7 +37,9 @@ app.post("/api/links", auth, async (c) => {
   let body: { url?: string };
   try {
     body = await c.req.json();
-  } catch {
+    console.log(`POST /api/links body:`, JSON.stringify(body));
+  } catch (err) {
+    console.log(`POST /api/links invalid JSON`);
     return c.json({ error: "Invalid JSON" }, 400);
   }
   const url = body.url;
