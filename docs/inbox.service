@@ -5,13 +5,11 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=agent
-WorkingDirectory=/home/agent/misc/inbox
-ExecStart=/home/agent/.npm-global/bin/bun run src/server.ts
+WorkingDirectory=%h/misc/inbox
+ExecStart=%h/.npm-global/bin/bun inbox serve
 Environment=INBOX_PORT=3333
-Environment=HOME=/home/agent
 Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
